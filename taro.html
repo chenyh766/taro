@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>芋头智能检测助手</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* 全局基础设置与清新淡紫背景 */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* 淡紫色渐变背景，你可以把 url() 里的链接换成你喜欢的真实芋头背景图 */
+            background: linear-gradient(135deg, rgba(230, 212, 249, 0.8) 0%, rgba(244, 235, 255, 0.9) 100%), 
+                        url('https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+            color: #4a3b52;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* 主容器：毛玻璃质感卡片 */
+        .app-container {
+            width: 100%;
+            max-width: 500px; /* 模拟手机端/窄屏体验 */
+            margin: 20px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(15px); /* 核心毛玻璃效果 */
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(142, 68, 173, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        /* 顶部标题栏 */
+        .header {
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #7b4397; /* 强调紫 */
+        }
+        .header p {
+            margin: 5px 0 0;
+            font-size: 14px;
+            color: #887a93;
+        }
+
+        /* 上传区域设计 */
+        .upload-section {
+            border: 2px dashed #b589d6;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .upload-section:hover {
+            background: rgba(181, 137, 214, 0.1);
+            border-color: #7b4397;
+        }
+        .upload-icon {
+            font-size: 40px;
+            color: #9b59b6;
+            margin-bottom: 10px;
+        }
+        .upload-text {
+            font-size: 16px;
+            font-weight: bold;
+            color: #5c416e;
+        }
+        .upload-hint {
+            font-size: 12px;
+            color: #887a93;
+            margin-top: 5px;
+        }
+        
+        /* 隐藏真实的输入框，用漂亮的 UI 替代 */
+        #fileInput, #folderInput {
+            display: none;
+        }
+
+        /* 按钮组 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .btn {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);
+            transition: transform 0.2s, background 0.3s;
+        }
+        .btn:hover {
+            background: #8e44ad;
+            transform: translateY(-2px);
+        }
+
+        /* 统计图表区域 */
+        .chart-container {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            display: none; /* 初始隐藏，有数据后显示 */
+        }
+        .chart-container h2 {
+            font-size: 18px;
+            margin: 0 0 15px 0;
+            color: #5c416e;
+            text-align: center;
+        }
+
+        /* 检测结果列表 */
+        .results-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 10px;
+            padding-right: 5px;
+        }
+        /* 自定义滚动条 */
+        .results-list::-webkit-scrollbar { width: 6px; }
+        .results-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 10px;}
+        .results-list::-webkit-scrollbar-thumb { background: #b589d6; border-radius: 10px;}
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-normal { background: #e8f8f5; color: #1abc9c; }
+        .status-diseased { background: #fdedec; color: #e74c3c; }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <h1><i class="fa-solid fa-leaf"></i> 芋头 AI 质检站</h1>
+        <p>让每一颗荔浦芋头都有据可查</p>
+    </div>
+
+    <div>
+        <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+            <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+            <div class="upload-text">点击或拖拽上传芋头图片</div>
+            <div class="upload-hint">支持 jpg, png 格式</div>
+        </div>
+        
+        <div class="btn-group">
+            <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(this.files)">
+            <button class="btn" onclick="document.getElementById('fileInput').click()"><i class="fa-regular fa-images"></i> 选图片</button>
+            
+            <input type="file" id="folderInput" webkitdirectory directory multiple onchange="handleFiles(this.files)">
+            <button class="btn" onclick="document.getElementById('folderInput').click()"><i class="fa-regular fa-folder-open"></i> 选文件夹</button>
+        </div>
+    </div>
+
+    <div class="chart-container" id="chartArea">
+        <h2>📊 全局品质总览</h2>
+        <canvas id="taroChart" width="100" height="60"></canvas>
+    </div>
+
+    <div class="results-list" id="resultsList">
+        </div>
+</div>
+
+<script>
+    let myChart = null;
+
+    // 处理文件上传的函数
+    function handleFiles(files) {
+        if (files.length === 0) return;
+
+        // 过滤掉非图片文件（如果上传文件夹，里面可能有其他杂文件）
+        const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        
+        if(imageFiles.length === 0) {
+            alert("没有找到图片文件！");
+            return;
+        }
+
+        // 模拟调用后台 AI 模型的检测过程（这里我们先用随机数模拟结果）
+        // 等你后端写好，这里就换成发送请求给你的 YOLO 模型
+        let normalCount = 0;
+        let diseasedCount = 0;
+        let resultsHTML = '';
+
+        imageFiles.forEach(file => {
+            // 模拟：80%概率是好芋头，20%概率是坏芋头
+            const isNormal = Math.random() > 0.2; 
+            
+            if (isNormal) {
+                normalCount++;
+                resultsHTML += `
+                    <div class="result-item">
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%;">${file.name}</span>
+                        <span class="status-badge status-normal"><i class="fa-solid fa-check"></i> 健康</span>
+                    </div>`;
+            } else {
+                diseasedCount++;
+                resultsHTML += `
+                    <div class="result-item">
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%;">${file.name}</span>
+                        <span class="status-badge status-diseased"><i class="fa-solid fa-xmark"></i> 病害</span>
+                    </div>`;
+            }
+        });
+
+        // 将列表渲染到页面
+        document.getElementById('resultsList').innerHTML = resultsHTML;
+
+        // 显示并更新统计图
+        document.getElementById('chartArea').style.display = 'block';
+        updateChart(normalCount, diseasedCount);
+    }
+
+    // 绘制/更新精美统计图的函数
+    function updateChart(normal, diseased) {
+        const ctx = document.getElementById('taroChart').getContext('2d');
+        
+        // 如果之前有图表，先销毁，防止重叠
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        // 使用 Chart.js 生成环形图（Doughnut Chart），最适合直观对比两项数据
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['健康 (Normal)', '病害 (Diseased)'],
+                datasets: [{
+                    data: [normal, diseased],
+                    backgroundColor: [
+                        '#1abc9c', // 健康的清新鲜绿色
+                        '#e74c3c'  // 病害的警告红色
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { family: 'Segoe UI' } }
+                    }
+                },
+                cutout: '65%' // 中间空心的大小，看起来更现代
+            }
+        });
+    }
+</script>
+
+</body>
+</html>

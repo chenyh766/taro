@@ -1,0 +1,4 @@
+train: C:/Users/Lenovo--/Desktop/taro_dataset/seed_data
+val: C:/Users/Lenovo--/Desktop/taro_dataset/seed_data
+nc: 2
+names: ['Normal', 'Diseased']
